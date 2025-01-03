@@ -1,0 +1,34 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      docker: 19
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 872707474515.dkr.ecr.us-east-1.amazonaws.com/vaibhav/react-app
+      - echo Installing Trivy...
+      - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+  pre_build:
+    commands:
+      - echo Building the Docker image...
+      - docker build -t my-app .
+      - echo Tagging the Docker image...
+      - docker tag my-app:latest 872707474515.dkr.ecr.us-east-1.amazonaws.com/vaibhav/react-app/my-app:latest
+
+  build:
+    commands:
+      - echo Running unit tests...
+      - ./run-tests.sh
+      - echo Scanning the Docker image with Trivy...
+      - trivy image --exit-code 0 --no-progress --format table 872707474515.dkr.ecr.us-east-1.amazonaws.com/vaibhav/react-app/my-app:latest
+      - echo Trivy scan completed.
+
+  post_build:
+    commands:
+      - echo Pushing the Docker image to ECR...
+      - docker push 872707474515.dkr.ecr.us-east-1.amazonaws.com/vaibhav/react-app/my-app:latest
+      - echo Docker image pushed to ECR.
+      - echo Sending notification...
+      - aws sns publish
